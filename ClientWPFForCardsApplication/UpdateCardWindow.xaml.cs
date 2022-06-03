@@ -8,6 +8,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -82,27 +83,41 @@ namespace ClientWPFForCardsApplication
         }
         private void Update_Click(object sender, RoutedEventArgs e)
         {
-
-            UpdateCardRequest card = new UpdateCardRequest() { Id = this.card.Id, Title = this.TitleTextBox.Text };
-            if (SelectedImage.Source != null)
+            bool isTextInCorrectFormat = Regex.Match(this.TitleTextBox.Text, @"[a-zA-Z]").Success;
+            if (isTextInCorrectFormat)
             {
-                var arrayForNewImage = getJPGFromImageControl(SelectedImage.Source as BitmapImage);
-                card.NewImage = Convert.ToBase64String(arrayForNewImage);
+                UpdateCardRequest card = new UpdateCardRequest() { Id = this.card.Id, Title = this.TitleTextBox.Text };
+                if (SelectedImage.Source != null)
+                {
+                    var arrayForNewImage = getJPGFromImageControl(SelectedImage.Source as BitmapImage);
+                    card.NewImage = Convert.ToBase64String(arrayForNewImage);
+                }
+                else
+                {
+                    var arrayForNewImage = getJPGFromImageControl(CurrentImage.Source as BitmapImage);
+                    card.NewImage = Convert.ToBase64String(arrayForNewImage);
+                }
+                card.CurrentImage = this.card.ImageName;
+
+                var myContent = JsonConvert.SerializeObject(card);
+                var buffer = System.Text.Encoding.UTF8.GetBytes(myContent);
+                var byteContent = new ByteArrayContent(buffer);
+                byteContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+                var response = client.PutAsync(API.CardsAPI, byteContent).Result;
+
+                this.Close();
             }
+
             else
             {
-                var arrayForNewImage = getJPGFromImageControl(CurrentImage.Source as BitmapImage);
-                card.NewImage = Convert.ToBase64String(arrayForNewImage);
-            }
-            card.CurrentImage = this.card.ImageName;
+                string messageBoxText = "Please enter correct title(onle latin)";
+                string caption = "Word Processor";
+                MessageBoxButton button = MessageBoxButton.OK;
+                MessageBoxImage icon = MessageBoxImage.Warning;
+                MessageBoxResult result;
 
-            var myContent = JsonConvert.SerializeObject(card);
-            var buffer = System.Text.Encoding.UTF8.GetBytes(myContent);
-            var byteContent = new ByteArrayContent(buffer);
-            byteContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-            var response = client.PutAsync(API.CardsAPI, byteContent).Result;
-            
-            this.Close();
+                result = MessageBox.Show(messageBoxText, caption, button, icon, MessageBoxResult.Yes);
+            }
         }
     }
 }
